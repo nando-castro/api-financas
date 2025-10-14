@@ -1,7 +1,9 @@
+import { Categoria } from 'src/categorias/categoria.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 // import { Financa } from '../financas/financa.entity';
@@ -31,6 +33,9 @@ export class Usuario {
 
   @CreateDateColumn()
   criadoEm: Date;
+
+  @OneToMany(() => Categoria, (categoria) => categoria.usuario)
+  categorias: Categoria[];
 
   // @OneToMany(() => Financa, (financa) => financa.usuario)
   // financas: Financa[];
