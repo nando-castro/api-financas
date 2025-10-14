@@ -14,6 +14,12 @@ async function bootstrap() {
     }),
   );
 
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true, // se você usa cookies/autenticação
+  });
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
