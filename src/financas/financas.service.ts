@@ -94,4 +94,27 @@ export class FinancasService {
     await this.financaRepo.delete(id);
     return { message: 'Finança removida com sucesso!' };
   }
+
+  async listarPorTipo(usuarioId: number, tipo: 'RENDA' | 'DESPESA') {
+    const financas = await this.financaRepo.find({
+      where: {
+        usuario: { id: usuarioId },
+        tipo,
+      },
+      relations: ['categoria'],
+      order: { criadoEm: 'DESC' },
+    });
+
+    return financas.map((f) => ({
+      id: f.id,
+      nome: f.nome,
+      valor: Number(f.valor),
+      tipo: f.tipo,
+      parcelas: f.parcelas,
+      dataInicio: f.dataInicio,
+      dataFim: f.dataFim,
+      criadoEm: f.criadoEm,
+      categoria: f.categoria ? { id: f.categoria.id, nome: f.categoria.nome } : null,
+    }));
+  }
 }

@@ -28,4 +28,12 @@ export class FinancasController {
   async remover(@Param('id') id: number, @Req() req) {
     return this.financasService.remover(id, req.user.id);
   }
+
+  @Get('tipo/:tipo')
+  async listarPorTipo(@Param('tipo') tipo: 'RENDA' | 'DESPESA', @Req() req) {
+    return this.financasService.listarPorTipo(
+      req.user.id,
+      tipo.toUpperCase() as 'RENDA' | 'DESPESA',
+    );
+  }
 }
