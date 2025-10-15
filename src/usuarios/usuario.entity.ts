@@ -17,14 +17,20 @@ export class Usuario {
   @Column()
   senha: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  resetToken: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  resetTokenExpiraEm: Date | null;
+
   @Column({ default: 'light' })
   tema: string;
 
-  @Column({ default: 'BRL' })
-  moeda: string;
-
   @Column({ default: 'pt-BR' })
   idioma: string;
+
+  @Column({ default: 'BRL' })
+  moeda: string;
 
   @CreateDateColumn()
   criadoEm: Date;

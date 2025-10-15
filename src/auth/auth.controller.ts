@@ -18,4 +18,16 @@ export class AuthController {
     const { email, senha } = body;
     return this.authService.login(email, senha);
   }
+
+  // 🔹 Recuperar senha (gera token)
+  @Post('forgot-password')
+  async forgotPassword(@Body('email') email: string) {
+    return this.authService.forgotPassword(email);
+  }
+
+  // 🔹 Redefinir senha
+  @Post('reset-password')
+  async resetPassword(@Body('token') token: string, @Body('novaSenha') novaSenha: string) {
+    return this.authService.resetPassword(token, novaSenha);
+  }
 }

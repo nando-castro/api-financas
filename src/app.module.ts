@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
-import { UsuariosModule } from './usuarios/usuarios.module';
 import { CategoriasModule } from './categorias/categorias.module';
 import { FinancasModule } from './financas/financas.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { FinancasModule } from './financas/financas.module';
     AuthModule,
     CategoriasModule,
     FinancasModule,
+    MailModule,
   ],
 })
 export class AppModule {}
