@@ -4,8 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { CategoriasModule } from './categorias/categorias.module';
 import { FinancasModule } from './financas/financas.module';
-import { UsuariosModule } from './usuarios/usuarios.module';
 import { MailModule } from './mail/mail.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
 
 @Module({
   imports: [
@@ -19,6 +19,7 @@ import { MailModule } from './mail/mail.module';
       database: process.env.DB_NAME || 'app_financas',
       autoLoadEntities: true,
       synchronize: true,
+      ssl: { rejectUnauthorized: false },
     }),
     UsuariosModule,
     AuthModule,
