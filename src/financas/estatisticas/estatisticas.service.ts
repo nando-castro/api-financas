@@ -71,17 +71,13 @@ export class EstatisticasService {
 
     const saldo = totalRendas - totalDespesas;
 
-    // 🔹 Mês anterior
+    // 🔹 Buscar saldo do mês anterior
     const mesAnterior = mesAtual === 1 ? 12 : mesAtual - 1;
     const anoAnterior = mesAtual === 1 ? anoAtual - 1 : anoAtual;
+    // const saldoAnterior = await this.getSaldoVigente(usuarioId, mesAnterior, anoAnterior);
+    const saldoAnterior = await this.getSaldoAcumuladoAteMes(usuarioId, mesAnterior, anoAnterior);
 
-    const saldoAnterior = await this.getSaldoVigente(usuarioId, mesAnterior, anoAnterior);
-    const saldoAcumuladoAteAnterior = await this.getSaldoAcumuladoAteMes(
-      usuarioId,
-      mesAnterior,
-      anoAnterior,
-    );
-    const saldoAcumulado = saldoAcumuladoAteAnterior + saldo;
+    const saldoAcumulado = saldoAnterior + saldo;
 
     const percentualEconomia =
       totalRendas > 0 ? ((saldo / totalRendas) * 100).toFixed(2) + '%' : '0%';
@@ -152,7 +148,7 @@ export class EstatisticasService {
         saldoAcumulado,
       });
 
-      saldoAnterior = saldoAcumulado; // prepara para o próximo mês
+      saldoAnterior = saldo; // prepara para o próximo mês
     }
 
     return {
