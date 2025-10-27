@@ -148,7 +148,7 @@ export class EstatisticasService {
         saldoAcumulado,
       });
 
-      saldoAnterior = saldo; // prepara para o próximo mês
+      saldoAnterior = saldoAcumulado; // prepara para o próximo mês
     }
 
     return {
