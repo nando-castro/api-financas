@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { AtualizarFinancaDto } from './dto/atualizar-financa.dto';
 import { CriarFinancaDto } from './dto/criar-financa.dto';
@@ -30,10 +41,17 @@ export class FinancasController {
   }
 
   @Get('tipo/:tipo')
-  async listarPorTipo(@Param('tipo') tipo: 'RENDA' | 'DESPESA', @Req() req) {
+  async listarPorTipo(
+    @Req() req,
+    @Param('tipo') tipo: 'RENDA' | 'DESPESA',
+    @Query('mes') mes?: number,
+    @Query('ano') ano?: number,
+  ) {
     return this.financasService.listarPorTipo(
       req.user.id,
       tipo.toUpperCase() as 'RENDA' | 'DESPESA',
+      mes ? Number(mes) : undefined,
+      ano ? Number(ano) : undefined,
     );
   }
 }

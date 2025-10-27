@@ -7,6 +7,8 @@ import { FinancasModule } from './financas/financas.module';
 import { MailModule } from './mail/mail.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 
+const isProduction = process.env.AMBIENTE === 'prod';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -19,7 +21,9 @@ import { UsuariosModule } from './usuarios/usuarios.module';
       database: process.env.DB_NAME || 'app_financas',
       autoLoadEntities: true,
       synchronize: true,
-      ssl: { rejectUnauthorized: false },
+      ssl: isProduction
+        ? { rejectUnauthorized: false } // se usar banco em nuvem (como Render, Supabase, Neon)
+        : false, // se local
     }),
     UsuariosModule,
     AuthModule,

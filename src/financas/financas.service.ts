@@ -95,15 +95,34 @@ export class FinancasService {
     return { message: 'Finança removida com sucesso!' };
   }
 
-  async listarPorTipo(usuarioId: number, tipo: 'RENDA' | 'DESPESA') {
-    const financas = await this.financaRepo.find({
-      where: {
-        usuario: { id: usuarioId },
-        tipo,
-      },
-      relations: ['categoria'],
-      order: { criadoEm: 'DESC' },
-    });
+  async listarPorTipo(usuarioId: number, tipo: 'RENDA' | 'DESPESA', mes?: number, ano?: number) {
+    const query = this.financaRepo
+      .createQueryBuilder('financa')
+      .leftJoinAndSelect('financa.categoria', 'categoria')
+      .where('financa.usuarioId = :usuarioId', { usuarioId })
+      .andWhere('financa.tipo = :tipo', { tipo });
+
+    if (mes && ano) {
+      const inicioMes = dayjs(`${ano}-${mes}-01`).startOf('month').toDate();
+      const fimMes = dayjs(inicioMes).endOf('month').toDate();
+
+      query.andWhere(
+        `
+      (
+        (financa.dataInicio BETWEEN :inicioMes AND :fimMes)
+        OR
+        (financa.dataFim IS NOT NULL AND financa.dataFim BETWEEN :inicioMes AND :fimMes)
+        OR
+        (financa.dataInicio <= :inicioMes AND (financa.dataFim IS NULL OR financa.dataFim >= :fimMes))
+      )
+      `,
+        { inicioMes, fimMes },
+      );
+    }
+
+    query.orderBy('financa.criadoEm', 'DESC');
+
+    const financas = await query.getMany();
 
     return financas.map((f) => ({
       id: f.id,
