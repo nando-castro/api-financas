@@ -27,15 +27,22 @@ export class SaldoMensalService {
       .andWhere('(f.dataFim IS NULL OR f.dataFim >= :inicioMes)', { inicioMes })
       .getMany();
 
+    // 🔹 Conversão segura de valores para número
+    const parseValor = (v: any) => {
+      const n = Number(v);
+      return isNaN(n) ? 0 : n;
+    };
+
     const totalRendas = financas
       .filter((f) => f.tipo === 'RENDA')
-      .reduce((acc: number, f: Financa) => acc + Number(f.valor || 0), 0);
+      .reduce((acc, f) => acc + parseValor(f.valor), 0);
 
     const totalDespesas = financas
       .filter((f) => f.tipo === 'DESPESA')
-      .reduce((acc: number, f: Financa) => acc + Number(f.valor || 0), 0);
+      .reduce((acc, f) => acc + parseValor(f.valor), 0);
 
-    const saldoAtual = totalRendas - totalDespesas;
+    // 🔹 Garante que são números
+    const saldoAtual = Number(totalRendas) - Number(totalDespesas);
 
     const mesAnterior = mes === 1 ? 12 : mes - 1;
     const anoAnterior = mes === 1 ? ano - 1 : ano;
@@ -51,7 +58,7 @@ export class SaldoMensalService {
         })
       )?.saldoAcumulado ?? 0;
 
-    const saldoAcumulado = saldoAnterior + saldoAtual;
+    const saldoAcumulado = Number(saldoAnterior) + Number(saldoAtual);
 
     // 🔹 Verifica se já existe registro
     const existente = await this.saldoRepo.findOne({
@@ -59,27 +66,26 @@ export class SaldoMensalService {
     });
 
     if (existente) {
-      // Atualiza os valores existentes
-      existente.totalRendas = totalRendas;
-      existente.totalDespesas = totalDespesas;
-      existente.saldoAtual = saldoAtual;
-      existente.saldoAcumulado = saldoAcumulado;
+      existente.totalRendas = Number(totalRendas);
+      existente.totalDespesas = Number(totalDespesas);
+      existente.saldoAtual = Number(saldoAtual);
+      existente.saldoAcumulado = Number(saldoAcumulado);
       existente.atualizadoEm = new Date();
 
       await this.saldoRepo.save(existente);
     } else {
-      // Cria um novo registro
       const novoSaldo = this.saldoRepo.create({
         usuario: { id: usuarioId },
         ano,
         mes,
-        totalRendas,
-        totalDespesas,
-        saldoAtual,
-        saldoAcumulado,
+        totalRendas: Number(totalRendas),
+        totalDespesas: Number(totalDespesas),
+        saldoAtual: Number(saldoAtual),
+        saldoAcumulado: Number(saldoAcumulado),
         criadoEm: new Date(),
         atualizadoEm: new Date(),
       });
+
       await this.saldoRepo.save(novoSaldo);
     }
   }
