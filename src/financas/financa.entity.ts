@@ -10,7 +10,14 @@ export class Financa {
   @Column()
   nome: string;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    transformer: {
+      to: (value: number) => value, // antes de salvar
+      from: (value: string | number) => Number(value), // ao ler do banco
+    },
+  })
   valor: number;
 
   @Column()
