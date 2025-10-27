@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { CategoriasModule } from './categorias/categorias.module';
 import { FinancasModule } from './financas/financas.module';
+import { SaldoMensalModule } from './financas/saldo-mensal/saldo-mensal.module';
 import { KeepAliveController } from './keepalive/keepalive.controller';
 import { KeepAliveService } from './keepalive/keepalive.service';
 import { MailModule } from './mail/mail.module';
@@ -32,6 +33,7 @@ const isProduction = process.env.AMBIENTE === 'prod';
     CategoriasModule,
     FinancasModule,
     MailModule,
+    SaldoMensalModule,
   ],
   controllers: [KeepAliveController],
   providers: [KeepAliveService], // 👈 Adicionado aqui

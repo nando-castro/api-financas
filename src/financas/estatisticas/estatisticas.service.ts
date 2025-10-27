@@ -11,6 +11,10 @@ export class EstatisticasService {
     private financaRepo: Repository<Financa>,
   ) {}
 
+  /**
+   * Retorna o saldo acumulado até o mês anterior,
+   * considerando mudanças de ano (ex: jan/2026 -> inclui dez/2025)
+   */
   private async getSaldoAcumuladoAteMes(
     usuarioId: number,
     mes: number,
@@ -18,27 +22,33 @@ export class EstatisticasService {
   ): Promise<number> {
     let saldoAcumulado = 0;
 
-    for (let m = 1; m <= mes; m++) {
-      const inicioMes = dayjs(`${ano}-${m}-01`).startOf('month').toDate();
-      const fimMes = dayjs(inicioMes).endOf('month').toDate();
+    // 🔹 Começa em 2020 ou outro ponto inicial do histórico
+    for (let a = 2020; a <= ano; a++) {
+      const ultimoMes = a === ano ? mes - 1 : 12;
+      if (ultimoMes <= 0) continue;
 
-      const financas = await this.financaRepo
-        .createQueryBuilder('f')
-        .leftJoin('f.usuario', 'u')
-        .where('u.id = :usuarioId', { usuarioId })
-        .andWhere('f.dataInicio <= :fimMes', { fimMes })
-        .andWhere('(f.dataFim IS NULL OR f.dataFim >= :inicioMes)', { inicioMes })
-        .getMany();
+      for (let m = 1; m <= ultimoMes; m++) {
+        const inicioMes = dayjs(`${a}-${m}-01`).startOf('month').toDate();
+        const fimMes = dayjs(inicioMes).endOf('month').toDate();
 
-      const totalRendas = financas
-        .filter((f) => f.tipo === 'RENDA')
-        .reduce((acc, f) => acc + Number(f.valor), 0);
+        const financas = await this.financaRepo
+          .createQueryBuilder('f')
+          .leftJoin('f.usuario', 'u')
+          .where('u.id = :usuarioId', { usuarioId })
+          .andWhere('f.dataInicio <= :fimMes', { fimMes })
+          .andWhere('(f.dataFim IS NULL OR f.dataFim >= :inicioMes)', { inicioMes })
+          .getMany();
 
-      const totalDespesas = financas
-        .filter((f) => f.tipo === 'DESPESA')
-        .reduce((acc, f) => acc + Number(f.valor), 0);
+        const totalRendas = financas
+          .filter((f) => f.tipo === 'RENDA')
+          .reduce((acc, f) => acc + Number(f.valor), 0);
 
-      saldoAcumulado += totalRendas - totalDespesas;
+        const totalDespesas = financas
+          .filter((f) => f.tipo === 'DESPESA')
+          .reduce((acc, f) => acc + Number(f.valor), 0);
+
+        saldoAcumulado += totalRendas - totalDespesas;
+      }
     }
 
     return saldoAcumulado;
@@ -71,11 +81,11 @@ export class EstatisticasService {
 
     const saldo = totalRendas - totalDespesas;
 
-    // 🔹 Buscar saldo do mês anterior
+    // 🔹 Corrige o cálculo do mês anterior (respeita a troca de ano)
     const mesAnterior = mesAtual === 1 ? 12 : mesAtual - 1;
     const anoAnterior = mesAtual === 1 ? anoAtual - 1 : anoAtual;
-    // const saldoAnterior = await this.getSaldoVigente(usuarioId, mesAnterior, anoAnterior);
-    const saldoAnterior = await this.getSaldoAcumuladoAteMes(usuarioId, mesAnterior, anoAnterior);
+
+    const saldoAnterior = await this.getSaldoAcumuladoAteMes(usuarioId, mesAtual, anoAtual);
 
     const saldoAcumulado = saldoAnterior + saldo;
 
@@ -114,7 +124,7 @@ export class EstatisticasService {
       saldoAcumulado: number;
     }[] = [];
 
-    let saldoAnterior = 0;
+    let saldoAcumulado = await this.getSaldoAcumuladoAteMes(usuarioId, 1, anoAtual); // saldo herdado de anos anteriores
 
     for (let mes = 1; mes <= 12; mes++) {
       const inicioMes = dayjs(`${anoAtual}-${mes}-01`).startOf('month').toDate();
@@ -137,7 +147,9 @@ export class EstatisticasService {
         .reduce((acc, f) => acc + Number(f.valor), 0);
 
       const saldo = totalRendas - totalDespesas;
-      const saldoAcumulado = saldoAnterior + saldo;
+
+      const saldoAnterior = saldoAcumulado;
+      saldoAcumulado += saldo;
 
       resultados.push({
         mes: dayjs(inicioMes).format('MMMM'),
@@ -147,8 +159,6 @@ export class EstatisticasService {
         saldoAnterior,
         saldoAcumulado,
       });
-
-      saldoAnterior = saldo; // prepara para o próximo mês
     }
 
     return {
