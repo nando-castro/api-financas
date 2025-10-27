@@ -29,20 +29,14 @@ export class SaldoMensalService {
 
     const totalRendas = financas
       .filter((f) => f.tipo === 'RENDA')
-      .reduce((acc: number, f: Financa) => {
-        const v = Number(f.valor);
-        return acc + (Number.isFinite(v) ? v : 0);
-      }, 0);
+      .reduce((acc: number, f: Financa) => acc + Number(f.valor || 0), 0);
+
     const totalDespesas = financas
       .filter((f) => f.tipo === 'DESPESA')
-      .reduce((acc: number, f: Financa) => {
-        const v = Number(f.valor);
-        return acc + (Number.isFinite(v) ? v : 0);
-      }, 0);
+      .reduce((acc: number, f: Financa) => acc + Number(f.valor || 0), 0);
 
     const saldoAtual = totalRendas - totalDespesas;
 
-    // 🔹 Busca o saldo acumulado até o mês anterior (mesmo se mudar o ano)
     const mesAnterior = mes === 1 ? 12 : mes - 1;
     const anoAnterior = mes === 1 ? ano - 1 : ano;
 
@@ -59,16 +53,35 @@ export class SaldoMensalService {
 
     const saldoAcumulado = saldoAnterior + saldoAtual;
 
-    // 🔹 Salva ou atualiza
-    await this.saldoRepo.save({
-      usuario: { id: usuarioId },
-      ano,
-      mes,
-      totalRendas,
-      totalDespesas,
-      saldoAtual,
-      saldoAcumulado,
+    // 🔹 Verifica se já existe registro
+    const existente = await this.saldoRepo.findOne({
+      where: { usuario: { id: usuarioId }, ano, mes },
     });
+
+    if (existente) {
+      // Atualiza os valores existentes
+      existente.totalRendas = totalRendas;
+      existente.totalDespesas = totalDespesas;
+      existente.saldoAtual = saldoAtual;
+      existente.saldoAcumulado = saldoAcumulado;
+      existente.atualizadoEm = new Date();
+
+      await this.saldoRepo.save(existente);
+    } else {
+      // Cria um novo registro
+      const novoSaldo = this.saldoRepo.create({
+        usuario: { id: usuarioId },
+        ano,
+        mes,
+        totalRendas,
+        totalDespesas,
+        saldoAtual,
+        saldoAcumulado,
+        criadoEm: new Date(),
+        atualizadoEm: new Date(),
+      });
+      await this.saldoRepo.save(novoSaldo);
+    }
   }
 
   async buscarSaldo(usuarioId: number, ano: number, mes: number) {
