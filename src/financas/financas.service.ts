@@ -66,16 +66,34 @@ export class FinancasService {
   async atualizar(id: number, dto: AtualizarFinancaDto, usuarioId: number) {
     const financa = await this.financaRepo.findOne({
       where: { id },
-      relations: ['usuario'],
+      relations: ['usuario', 'categoria'],
     });
 
     if (!financa) throw new NotFoundException('Finança não encontrada.');
-
     if (financa.usuario.id !== usuarioId)
       throw new ForbiddenException('Você não tem permissão para editar esta finança.');
 
+    // 🔹 Atualiza dados básicos
     Object.assign(financa, dto);
 
+    // 🔹 Atualiza categoria (relacionamento)
+    if (dto.categoriaId !== undefined) {
+      if (dto.categoriaId === null) {
+        financa.categoria = null; // remove categoria se vier null
+      } else {
+        const categoria = await this.categoriaRepo.findOne({
+          where: { id: dto.categoriaId },
+        });
+
+        if (!categoria) {
+          throw new NotFoundException('Categoria não encontrada.');
+        }
+
+        financa.categoria = categoria;
+      }
+    }
+
+    // 🔹 Atualiza dataFim conforme parcelas
     if (dto.parcelas && !dto.dataFim) {
       financa.dataFim = dayjs(financa.dataInicio)
         .add(dto.parcelas - 1, 'month')
@@ -84,7 +102,7 @@ export class FinancasService {
 
     const updated = await this.financaRepo.save(financa);
 
-    // ✅ Atualiza o saldo mensal após alteração
+    // 🔹 Atualiza o saldo mensal após alteração
     const data = dayjs(financa.dataInicio);
     await this.saldoMensalService.atualizarSaldo(usuarioId, data.year(), data.month() + 1);
 
