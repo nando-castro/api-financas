@@ -4,6 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { CategoriasModule } from './categorias/categorias.module';
 import { FinancasModule } from './financas/financas.module';
+import { KeepAliveController } from './keepalive/keepalive.controller';
+import { KeepAliveService } from './keepalive/keepalive.service';
 import { MailModule } from './mail/mail.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 
@@ -22,8 +24,8 @@ const isProduction = process.env.AMBIENTE === 'prod';
       autoLoadEntities: true,
       synchronize: true,
       ssl: isProduction
-        ? { rejectUnauthorized: false } // se usar banco em nuvem (como Render, Supabase, Neon)
-        : false, // se local
+        ? { rejectUnauthorized: false } // Render, Supabase, Neon etc.
+        : false, // ambiente local
     }),
     UsuariosModule,
     AuthModule,
@@ -31,5 +33,7 @@ const isProduction = process.env.AMBIENTE === 'prod';
     FinancasModule,
     MailModule,
   ],
+  controllers: [KeepAliveController],
+  providers: [KeepAliveService], // 👈 Adicionado aqui
 })
 export class AppModule {}
