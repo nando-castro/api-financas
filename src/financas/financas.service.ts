@@ -95,13 +95,25 @@ export class FinancasService {
     return { message: 'Finança removida com sucesso!' };
   }
 
-  async listarPorTipo(usuarioId: number, tipo: 'RENDA' | 'DESPESA', mes?: number, ano?: number) {
+  async listarPorTipo(
+    usuarioId: number,
+    tipo: 'RENDA' | 'DESPESA',
+    mes?: number,
+    ano?: number,
+    categoriaId?: number,
+  ) {
     const query = this.financaRepo
       .createQueryBuilder('financa')
       .leftJoinAndSelect('financa.categoria', 'categoria')
       .where('financa.usuarioId = :usuarioId', { usuarioId })
       .andWhere('financa.tipo = :tipo', { tipo });
 
+    // filtro por categoria
+    if (categoriaId) {
+      query.andWhere('categoria.id = :categoriaId', { categoriaId });
+    }
+
+    // filtro por mês e ano
     if (mes && ano) {
       const inicioMes = dayjs(`${ano}-${mes}-01`).startOf('month').toDate();
       const fimMes = dayjs(inicioMes).endOf('month').toDate();

@@ -46,12 +46,14 @@ export class FinancasController {
     @Param('tipo') tipo: 'RENDA' | 'DESPESA',
     @Query('mes') mes?: number,
     @Query('ano') ano?: number,
+    @Query('categoriaId') categoriaId?: number,
   ) {
     return this.financasService.listarPorTipo(
       req.user.id,
       tipo.toUpperCase() as 'RENDA' | 'DESPESA',
       mes ? Number(mes) : undefined,
       ano ? Number(ano) : undefined,
+      categoriaId ? Number(categoriaId) : undefined,
     );
   }
 }
