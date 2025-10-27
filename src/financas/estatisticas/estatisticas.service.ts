@@ -11,6 +11,39 @@ export class EstatisticasService {
     private financaRepo: Repository<Financa>,
   ) {}
 
+  private async getSaldoAcumuladoAteMes(
+    usuarioId: number,
+    mes: number,
+    ano: number,
+  ): Promise<number> {
+    let saldoAcumulado = 0;
+
+    for (let m = 1; m <= mes; m++) {
+      const inicioMes = dayjs(`${ano}-${m}-01`).startOf('month').toDate();
+      const fimMes = dayjs(inicioMes).endOf('month').toDate();
+
+      const financas = await this.financaRepo
+        .createQueryBuilder('f')
+        .leftJoin('f.usuario', 'u')
+        .where('u.id = :usuarioId', { usuarioId })
+        .andWhere('f.dataInicio <= :fimMes', { fimMes })
+        .andWhere('(f.dataFim IS NULL OR f.dataFim >= :inicioMes)', { inicioMes })
+        .getMany();
+
+      const totalRendas = financas
+        .filter((f) => f.tipo === 'RENDA')
+        .reduce((acc, f) => acc + Number(f.valor), 0);
+
+      const totalDespesas = financas
+        .filter((f) => f.tipo === 'DESPESA')
+        .reduce((acc, f) => acc + Number(f.valor), 0);
+
+      saldoAcumulado += totalRendas - totalDespesas;
+    }
+
+    return saldoAcumulado;
+  }
+
   // 🔹 1. Estatísticas Mensais
   async estatisticasMensal(usuarioId: number, mes?: number, ano?: number) {
     const hoje = dayjs();
@@ -41,7 +74,8 @@ export class EstatisticasService {
     // 🔹 Buscar saldo do mês anterior
     const mesAnterior = mesAtual === 1 ? 12 : mesAtual - 1;
     const anoAnterior = mesAtual === 1 ? anoAtual - 1 : anoAtual;
-    const saldoAnterior = await this.getSaldoVigente(usuarioId, mesAnterior, anoAnterior);
+    // const saldoAnterior = await this.getSaldoVigente(usuarioId, mesAnterior, anoAnterior);
+    const saldoAnterior = await this.getSaldoAcumuladoAteMes(usuarioId, mesAnterior, anoAnterior);
 
     const saldoAcumulado = saldoAnterior + saldo;
 
