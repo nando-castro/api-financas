@@ -4,13 +4,6 @@ import dayjs from 'dayjs';
 import { Repository } from 'typeorm';
 import { Financa } from '../financa.entity';
 
-export interface EstatisticaMensal {
-  mes: string;
-  rendas: number;
-  despesas: number;
-  saldo: number;
-}
-
 @Injectable()
 export class EstatisticasService {
   constructor(
@@ -44,6 +37,14 @@ export class EstatisticasService {
       .reduce((acc, f) => acc + Number(f.valor), 0);
 
     const saldo = totalRendas - totalDespesas;
+
+    // 🔹 Buscar saldo do mês anterior
+    const mesAnterior = mesAtual === 1 ? 12 : mesAtual - 1;
+    const anoAnterior = mesAtual === 1 ? anoAtual - 1 : anoAtual;
+    const saldoAnterior = await this.getSaldoVigente(usuarioId, mesAnterior, anoAnterior);
+
+    const saldoAcumulado = saldoAnterior + saldo;
+
     const percentualEconomia =
       totalRendas > 0 ? ((saldo / totalRendas) * 100).toFixed(2) + '%' : '0%';
 
@@ -60,6 +61,8 @@ export class EstatisticasService {
       totalRendas,
       totalDespesas,
       saldo,
+      saldoAnterior,
+      saldoAcumulado,
       percentualEconomia,
       recomendacao,
     };
@@ -73,7 +76,11 @@ export class EstatisticasService {
       rendas: number;
       despesas: number;
       saldo: number;
+      saldoAnterior: number;
+      saldoAcumulado: number;
     }[] = [];
+
+    let saldoAnterior = 0;
 
     for (let mes = 1; mes <= 12; mes++) {
       const inicioMes = dayjs(`${anoAtual}-${mes}-01`).startOf('month').toDate();
@@ -95,12 +102,19 @@ export class EstatisticasService {
         .filter((f) => f.tipo === 'DESPESA')
         .reduce((acc, f) => acc + Number(f.valor), 0);
 
+      const saldo = totalRendas - totalDespesas;
+      const saldoAcumulado = saldoAnterior + saldo;
+
       resultados.push({
         mes: dayjs(inicioMes).format('MMMM'),
         rendas: totalRendas,
         despesas: totalDespesas,
-        saldo: totalRendas - totalDespesas,
+        saldo,
+        saldoAnterior,
+        saldoAcumulado,
       });
+
+      saldoAnterior = saldo; // prepara para o próximo mês
     }
 
     return {
@@ -115,7 +129,6 @@ export class EstatisticasService {
     const mesAtual = hoje.month() + 1;
     const anoAtual = hoje.year();
 
-    // Saldo do mês atual e anterior com a lógica corrigida
     const saldoAtual = await this.getSaldoVigente(usuarioId, mesAtual, anoAtual);
     const mesAnterior = mesAtual === 1 ? 12 : mesAtual - 1;
     const anoAnterior = mesAtual === 1 ? anoAtual - 1 : anoAtual;
