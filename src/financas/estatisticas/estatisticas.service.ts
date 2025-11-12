@@ -81,10 +81,6 @@ export class EstatisticasService {
 
     const saldo = totalRendas - totalDespesas;
 
-    // 🔹 Corrige o cálculo do mês anterior (respeita a troca de ano)
-    const mesAnterior = mesAtual === 1 ? 12 : mesAtual - 1;
-    const anoAnterior = mesAtual === 1 ? anoAtual - 1 : anoAtual;
-
     const saldoAnterior = await this.getSaldoAcumuladoAteMes(usuarioId, mesAtual, anoAtual);
 
     const saldoAcumulado = saldoAnterior + saldo;
@@ -212,30 +208,48 @@ export class EstatisticasService {
     return totalRendas - totalDespesas;
   }
 
-  // 🔹 4. Estatísticas por Categoria
-  async porCategoria(usuarioId: number) {
-    const financas = await this.financaRepo.find({
-      where: { usuario: { id: usuarioId } },
-      relations: ['categoria'],
-    });
+  // 🔹 4. Estatísticas por Categoria (agrupadas e somadas)
+  async porCategoria(usuarioId: number, mes?: number, ano?: number) {
+    const hoje = dayjs();
+    const mesAtual = mes ?? hoje.month() + 1;
+    const anoAtual = ano ?? hoje.year();
 
+    const inicioMes = dayjs(`${anoAtual}-${mesAtual}-01`).startOf('month').toDate();
+    const fimMes = dayjs(inicioMes).endOf('month').toDate();
+
+    const financas = await this.financaRepo
+      .createQueryBuilder('f')
+      .leftJoinAndSelect('f.categoria', 'c')
+      .leftJoin('f.usuario', 'u')
+      .where('u.id = :usuarioId', { usuarioId })
+      .andWhere('f.dataInicio <= :fimMes', { fimMes })
+      .andWhere('(f.dataFim IS NULL OR f.dataFim >= :inicioMes)', { inicioMes })
+      .getMany();
+
+    // 🔸 Agrupar e somar por tipo + categoria
     const agrupadas = financas.reduce(
       (acc, f) => {
         const nomeCategoria = f.categoria?.nome ?? 'Sem categoria';
         const chave = `${f.tipo}-${nomeCategoria}`;
 
         if (!acc[chave]) {
-          acc[chave] = { nome: nomeCategoria, tipo: f.tipo, total: 0 };
+          acc[chave] = {
+            tipo: f.tipo,
+            categoria: nomeCategoria,
+            total: 0,
+          };
         }
 
         acc[chave].total += Number(f.valor);
         return acc;
       },
-      {} as Record<string, any>,
+      {} as Record<string, { tipo: string; categoria: string; total: number }>,
     );
 
-    return {
-      categorias: Object.values(agrupadas),
-    };
+    // 🔸 Converter em array e ordenar
+    return Object.values(agrupadas).sort((a, b) => {
+      if (a.tipo === b.tipo) return a.categoria.localeCompare(b.categoria);
+      return a.tipo.localeCompare(b.tipo);
+    });
   }
 }

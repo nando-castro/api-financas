@@ -23,7 +23,7 @@ export class EstatisticasController {
   }
 
   @Get('categorias')
-  async categorias(@Req() req) {
-    return this.estatisticasService.porCategoria(req.user.id);
+  async categorias(@Req() req, @Query('mes') mes?: number, @Query('ano') ano?: number) {
+    return this.estatisticasService.porCategoria(req.user.id, mes, ano);
   }
 }
