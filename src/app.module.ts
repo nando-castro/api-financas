@@ -24,9 +24,15 @@ const isProduction = process.env.AMBIENTE === 'prod';
       database: process.env.DB_NAME || 'app_financas',
       autoLoadEntities: true,
       synchronize: true,
+
       ssl: isProduction
         ? { rejectUnauthorized: false } // Render, Supabase, Neon etc.
         : false, // ambiente local
+
+      extra: {
+        sslmode: process.env.SSL_MODE || 'require',
+        channelBinding: process.env.CHANNEL_BINDING || 'require',
+      },
     }),
     UsuariosModule,
     AuthModule,
