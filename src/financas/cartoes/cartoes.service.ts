@@ -1,4 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+// cartoes.service.ts (AJUSTE: limiteDisponivel deve considerar TODAS as compras em aberto,
+// inclusive meses futuros — ou seja, o "limite utilizado (acumulado)" é global do cartão)
+
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { CartaoFatura } from './cartao-fatura.entity';
@@ -18,6 +21,62 @@ export class CartoesService {
     @InjectRepository(CartaoLancamento) private readonly lancRepo: Repository<CartaoLancamento>,
   ) {}
 
+  private lastDayOfMonthUTC(year: number, month1to12: number) {
+    // month1to12: 1..12
+    return new Date(Date.UTC(year, month1to12, 0)).getUTCDate();
+  }
+
+  private makeDateUTC(year: number, month1to12: number, day1to31: number) {
+    const max = this.lastDayOfMonthUTC(year, month1to12);
+    const day = Math.min(Math.max(1, day1to31), max);
+    return new Date(Date.UTC(year, month1to12 - 1, day, 0, 0, 0));
+  }
+
+  private addMonths(year: number, month1to12: number, delta: number) {
+    const d = new Date(Date.UTC(year, month1to12 - 1 + delta, 1, 0, 0, 0));
+    return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 };
+  }
+
+  /**
+   * Calcula a COMPETÊNCIA (fatura mes/ano) de uma COMPRA com base no fechamento.
+   * Regra:
+   * - se diaCompra <= diaFechamento => fatura = mês/ano da compra
+   * - senão => fatura = próximo mês
+   * E a data que será salva no lançamento = diaVencimento dessa fatura (clamp no último dia do mês).
+   */
+  private calcularCompetenciaCompra(cartao: Cartao, compraDate: Date) {
+    const diaFechamento = cartao.diaFechamento ?? null;
+    const diaVencimento = cartao.diaVencimento ?? null;
+
+    // Se não tiver configuração, cai no comportamento antigo (competência pela própria data)
+    if (!diaFechamento || !diaVencimento) {
+      const mes = compraDate.getUTCMonth() + 1;
+      const ano = compraDate.getUTCFullYear();
+      return {
+        mesFatura: mes,
+        anoFatura: ano,
+        dataCompetencia: compraDate, // mantém a data como veio
+      };
+    }
+
+    const diaCompra = compraDate.getUTCDate();
+    const mesCompra = compraDate.getUTCMonth() + 1;
+    const anoCompra = compraDate.getUTCFullYear();
+
+    const ref =
+      diaCompra <= diaFechamento
+        ? { year: anoCompra, month: mesCompra }
+        : this.addMonths(anoCompra, mesCompra, 1);
+
+    const dataCompetencia = this.makeDateUTC(ref.year, ref.month, diaVencimento);
+
+    return {
+      mesFatura: ref.month,
+      anoFatura: ref.year,
+      dataCompetencia,
+    };
+  }
+
   private async getCartaoOrFail(cartaoId: number, usuarioId: number) {
     const cartao = await this.cartoesRepo.findOne({ where: { id: cartaoId, usuarioId } });
     if (!cartao) throw new NotFoundException('Cartão não encontrado.');
@@ -31,6 +90,18 @@ export class CartoesService {
       fatura = await this.faturasRepo.save(fatura);
     }
     return fatura;
+  }
+
+  private parseDateOrThrow(input: any) {
+    const d = new Date(input);
+    if (Number.isNaN(d.getTime())) throw new BadRequestException('Data inválida.');
+    return d;
+  }
+
+  private rangeMesUTC(ano: number, mes: number) {
+    const start = new Date(Date.UTC(ano, mes - 1, 1, 0, 0, 0));
+    const end = new Date(Date.UTC(ano, mes, 1, 0, 0, 0));
+    return { start, end };
   }
 
   private async resolveLimiteVigente(
@@ -59,7 +130,7 @@ export class CartoesService {
   }
 
   /**
-   * Resume uma fatura com agregações confiáveis (não depende do cache totalPago).
+   * Resume uma fatura por faturaId (mantido para sincronizar cache totalPago)
    */
   private async resumoFaturaPorId(faturaId: number) {
     const row = await this.lancRepo
@@ -77,10 +148,6 @@ export class CartoesService {
     };
   }
 
-  /**
-   * Recalcula e sincroniza fatura.totalPago (cache) a partir dos lançamentos.
-   * Isso garante consistência para editar/apagar pagamentos.
-   */
   private async sincronizarTotalPago(faturaId: number) {
     const { totalPagamentos } = await this.resumoFaturaPorId(faturaId);
     await this.faturasRepo.update({ id: faturaId }, { totalPago: totalPagamentos });
@@ -88,10 +155,35 @@ export class CartoesService {
   }
 
   /**
-   * Limite utilizado acumulado até (mes/ano), somando o saldo em aberto de cada fatura.
+   * Totais do mês pela DATA (para lista/totais do mês, consistente com a UI)
    */
-  private async limiteUtilizadoAte(cartaoId: number, mes: number, ano: number) {
-    // traz faturas até o período + seus totais agregados
+  private async resumoMesPorData(cartaoId: number, mes: number, ano: number) {
+    const { start, end } = this.rangeMesUTC(ano, mes);
+
+    const row = await this.lancRepo
+      .createQueryBuilder('l')
+      .innerJoin(CartaoFatura, 'f', 'f.id = l.faturaId')
+      .select([
+        `COALESCE(SUM(CASE WHEN l.tipo = 'COMPRA' THEN l.valor ELSE 0 END), 0) as "totalCompras"`,
+        `COALESCE(SUM(CASE WHEN l.tipo = 'PAGAMENTO' THEN l.valor ELSE 0 END), 0) as "totalPagamentos"`,
+      ])
+      .where('f.cartaoId = :cartaoId', { cartaoId })
+      .andWhere('l.data >= :start AND l.data < :end', { start, end })
+      .getRawOne<{ totalCompras: string; totalPagamentos: string }>();
+
+    return {
+      totalCompras: Number(row?.totalCompras ?? 0),
+      totalPagamentos: Number(row?.totalPagamentos ?? 0),
+    };
+  }
+
+  /**
+   * ✅ NOVO: Limite utilizado GLOBAL (todas as faturas do cartão),
+   * somando o "em aberto" de cada fatura.
+   *
+   * Isso faz com que em DEZ/2025 o disponível já considere compras em JAN/FEV (parcelas futuras).
+   */
+  private async limiteUtilizadoTotal(cartaoId: number) {
     const rows = await this.faturasRepo
       .createQueryBuilder('f')
       .leftJoin(CartaoLancamento, 'l', 'l.faturaId = f.id')
@@ -102,11 +194,6 @@ export class CartoesService {
         `COALESCE(SUM(CASE WHEN l.tipo = 'PAGAMENTO' THEN l.valor ELSE 0 END), 0) as "totalPagamentos"`,
       ])
       .where('f.cartaoId = :cartaoId', { cartaoId })
-      .andWhere(
-        new Brackets((qb) => {
-          qb.where('f.ano < :ano', { ano }).orWhere('f.ano = :ano AND f.mes <= :mes', { ano, mes });
-        }),
-      )
       .groupBy('f.id')
       .addGroupBy('f.ajusteFatura')
       .getRawMany<{
@@ -140,30 +227,48 @@ export class CartoesService {
     if (dto.ajusteFatura != null) fatura.ajusteFatura = dto.ajusteFatura;
 
     const saved = await this.faturasRepo.save(fatura);
-
-    // mantém o cache coerente após ajuste (não obrigatório, mas bom)
     await this.sincronizarTotalPago(saved.id);
 
     return saved;
   }
 
   async criarLancamento(cartaoId: number, usuarioId: number, dto: CriarLancamentoCartaoDto) {
-    await this.getCartaoOrFail(cartaoId, usuarioId);
-    const fatura = await this.getOrCreateFatura(cartaoId, dto.mes, dto.ano);
+    const cartao = await this.getCartaoOrFail(cartaoId, usuarioId);
+
+    const d = new Date(dto.data as any);
+    if (Number.isNaN(d.getTime())) throw new BadRequestException('Data inválida.');
+
+    // ✅ COMPRA: competência definida pelo fechamento + data salva vira o vencimento da fatura
+    if (dto.tipo === 'COMPRA') {
+      const { mesFatura, anoFatura, dataCompetencia } = this.calcularCompetenciaCompra(cartao, d);
+      const fatura = await this.getOrCreateFatura(cartaoId, mesFatura, anoFatura);
+
+      const lanc = this.lancRepo.create({
+        faturaId: fatura.id,
+        tipo: 'COMPRA',
+        descricao: dto.descricao ?? null,
+        data: dataCompetencia as any, // ✅ salva no vencimento
+        valor: dto.valor,
+      });
+
+      const saved = await this.lancRepo.save(lanc);
+      await this.sincronizarTotalPago(fatura.id);
+      return saved;
+    }
+
+    // ✅ PAGAMENTO: mantém comportamento atual (amarrado ao mês/ano do sheet)
+    const fatura = await this.getOrCreateFatura(cartaoId, Number(dto.mes), Number(dto.ano));
 
     const lanc = this.lancRepo.create({
       faturaId: fatura.id,
-      tipo: dto.tipo,
+      tipo: 'PAGAMENTO',
       descricao: dto.descricao ?? null,
       data: dto.data as any,
       valor: dto.valor,
     });
 
     const saved = await this.lancRepo.save(lanc);
-
-    // IMPORTANTE: não incrementa totalPago “na mão”; sempre soma e sincroniza
     await this.sincronizarTotalPago(fatura.id);
-
     return saved;
   }
 
@@ -173,7 +278,7 @@ export class CartoesService {
     lancamentoId: number,
     dto: AtualizarLancamentoCartaoDto,
   ) {
-    await this.getCartaoOrFail(cartaoId, usuarioId);
+    const cartao = await this.getCartaoOrFail(cartaoId, usuarioId);
 
     const lanc = await this.lancRepo.findOne({
       where: { id: lancamentoId },
@@ -181,21 +286,41 @@ export class CartoesService {
     });
     if (!lanc) throw new NotFoundException('Lançamento não encontrado.');
 
-    // garante que o lançamento pertence ao cartão (via fatura)
     if (!lanc.fatura || lanc.fatura.cartaoId !== cartaoId) {
       throw new NotFoundException('Lançamento não encontrado para este cartão.');
     }
 
-    const faturaId = lanc.faturaId;
+    const faturaIdAntiga = lanc.faturaId;
 
-    if (dto.tipo !== undefined) lanc.tipo = dto.tipo;
+    if (dto.tipo !== undefined) lanc.tipo = dto.tipo as any;
     if (dto.descricao !== undefined) lanc.descricao = dto.descricao;
-    if (dto.data !== undefined) lanc.data = dto.data as any;
     if (dto.valor !== undefined) lanc.valor = dto.valor;
+
+    // ✅ Se for COMPRA e mudar data -> recalcula competência + salva data no vencimento
+    if (dto.data !== undefined) {
+      const d = new Date(dto.data as any);
+      if (Number.isNaN(d.getTime())) throw new BadRequestException('Data inválida.');
+
+      if (lanc.tipo === 'COMPRA') {
+        const { mesFatura, anoFatura, dataCompetencia } = this.calcularCompetenciaCompra(cartao, d);
+        const faturaDestino = await this.getOrCreateFatura(cartaoId, mesFatura, anoFatura);
+
+        lanc.data = dataCompetencia as any; // ✅ força para vencimento
+        if (faturaDestino.id !== lanc.faturaId) {
+          lanc.faturaId = faturaDestino.id;
+        }
+      } else {
+        // PAGAMENTO: mantém a data que o usuário setou
+        lanc.data = dto.data as any;
+      }
+    }
 
     const saved = await this.lancRepo.save(lanc);
 
-    await this.sincronizarTotalPago(faturaId);
+    await this.sincronizarTotalPago(faturaIdAntiga);
+    if (saved.faturaId !== faturaIdAntiga) {
+      await this.sincronizarTotalPago(saved.faturaId);
+    }
 
     return saved;
   }
@@ -216,7 +341,6 @@ export class CartoesService {
     const faturaId = lanc.faturaId;
 
     await this.lancRepo.delete({ id: lancamentoId });
-
     await this.sincronizarTotalPago(faturaId);
 
     return { ok: true };
@@ -226,28 +350,33 @@ export class CartoesService {
     const cartao = await this.getCartaoOrFail(cartaoId, usuarioId);
     const fatura = await this.getOrCreateFatura(cartaoId, mes, ano);
 
-    const lancamentos = await this.lancRepo.find({
-      where: { faturaId: fatura.id },
-      order: { data: 'DESC', id: 'DESC' },
-    });
+    const { start, end } = this.rangeMesUTC(ano, mes);
 
-    // totais confiáveis
-    const { totalCompras, totalPagamentos } = await this.resumoFaturaPorId(fatura.id);
+    const lancamentos = await this.lancRepo
+      .createQueryBuilder('l')
+      .innerJoin(CartaoFatura, 'f', 'f.id = l.faturaId')
+      .where('f.cartaoId = :cartaoId', { cartaoId })
+      .andWhere('l.data >= :start AND l.data < :end', { start, end })
+      .orderBy('l.data', 'DESC')
+      .addOrderBy('l.id', 'DESC')
+      .getMany();
+
+    const { totalCompras, totalPagamentos } = await this.resumoMesPorData(cartaoId, mes, ano);
 
     const ajusteFatura = Number(fatura.ajusteFatura || 0);
-    const valorFatura = totalCompras + ajusteFatura;
-    const emAberto = Math.max(0, valorFatura - totalPagamentos);
+    const valorFatura = Number(totalCompras) + ajusteFatura;
+    const emAberto = Math.max(0, valorFatura - Number(totalPagamentos));
 
-    // “comunicação”: soma do aberto acumulado até este mês/ano
-    const limiteUtilizado = await this.limiteUtilizadoAte(cartaoId, mes, ano);
+    // ✅ AQUI É O AJUSTE QUE VOCÊ PEDIU:
+    // utilizado global considera parcelas futuras (JAN/FEV) mesmo vendo DEZ
+    const limiteUtilizado = await this.limiteUtilizadoTotal(cartaoId);
 
     const limiteVigente = await this.resolveLimiteVigente(cartao, mes, ano, fatura);
     const limiteDisponivel = Math.max(0, limiteVigente - limiteUtilizado);
 
-    // opcional: coerência do cache
-    // (mantém totalPago em linha com os lançamentos)
-    if (Number(fatura.totalPago || 0) !== totalPagamentos) {
-      await this.faturasRepo.update({ id: fatura.id }, { totalPago: totalPagamentos });
+    // cache coerente (opcional)
+    if (Number(fatura.totalPago || 0) !== Number(totalPagamentos)) {
+      await this.faturasRepo.update({ id: fatura.id }, { totalPago: Number(totalPagamentos) });
     }
 
     return {
@@ -265,12 +394,12 @@ export class CartoesService {
         limiteMes: fatura.limiteMes ?? null,
         ajusteFatura,
         totalCompras,
-        valorFatura, // “Fatura atual” (total do mês)
-        totalPago: totalPagamentos, // “Valor pago”
-        emAberto, // saldo do mês
+        valorFatura,
+        totalPago: totalPagamentos,
+        emAberto,
         limiteVigente,
-        limiteUtilizado, // acumulado (faturas conversando)
-        limiteDisponivel, // limiteVigente - limiteUtilizado
+        limiteUtilizado,
+        limiteDisponivel,
       },
       lancamentos,
     };
