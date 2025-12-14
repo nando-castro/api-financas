@@ -180,6 +180,8 @@ export class FinancasService {
       dataInicio: f.dataInicio,
       dataFim: f.dataFim,
       criadoEm: f.criadoEm,
+      formaPagamento: f.formaPagamento ?? null,
+      cartaoId: f.cartaoId ?? null,
       categoria: f.categoria ? { id: f.categoria.id, nome: f.categoria.nome } : null,
     }));
   }

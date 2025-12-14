@@ -1,4 +1,5 @@
 import { Categoria } from 'src/categorias/categoria.entity';
+import { Cartao } from 'src/financas/cartoes/cartao.entity';
 import { Financa } from 'src/financas/financa.entity';
 import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 // import { Financa } from '../financas/financa.entity';
@@ -40,4 +41,7 @@ export class Usuario {
 
   @OneToMany(() => Financa, (financa) => financa.usuario)
   financas: Financa[];
+
+  @OneToMany(() => Cartao, (cartao) => cartao.usuario)
+  cartoes: Cartao[];
 }

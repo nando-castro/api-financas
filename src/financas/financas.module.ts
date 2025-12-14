@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Categoria } from '../categorias/categoria.entity';
+import { CartoesModule } from './cartoes/cartoes.module';
 import { EstatisticasModule } from './estatisticas/estatisticas.module';
 import { Financa } from './financa.entity';
 import { FinancasController } from './financas.controller';
@@ -12,6 +13,7 @@ import { SaldoMensalModule } from './saldo-mensal/saldo-mensal.module'; // ✅ m
     TypeOrmModule.forFeature([Financa, Categoria]),
     EstatisticasModule,
     SaldoMensalModule, // ✅ importa o módulo (não o service direto)
+    CartoesModule,
   ],
   controllers: [FinancasController],
   providers: [FinancasService], // ✅ apenas o service principal

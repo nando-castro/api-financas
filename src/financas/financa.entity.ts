@@ -1,6 +1,21 @@
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+// src/financas/financa.entity.ts
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Categoria } from '../categorias/categoria.entity';
 import { Usuario } from '../usuarios/usuario.entity';
+import { Cartao } from './cartoes/cartao.entity';
+
+export enum FormaPagamento {
+  CARTAO = 'CARTAO',
+  PIX = 'PIX',
+  DINHEIRO = 'DINHEIRO',
+}
 
 @Entity('financas')
 export class Financa {
@@ -14,8 +29,8 @@ export class Financa {
     precision: 10,
     scale: 2,
     transformer: {
-      to: (value: number) => value, // antes de salvar
-      from: (value: string | number) => Number(value), // ao ler do banco
+      to: (value: number) => value,
+      from: (value: string | number) => Number(value),
     },
   })
   valor: number;
@@ -40,4 +55,18 @@ export class Financa {
 
   @ManyToOne(() => Categoria, (categoria) => categoria.financas, { eager: true, nullable: true })
   categoria?: Categoria | null;
+
+  // ========= NOVO =========
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  formaPagamento?: FormaPagamento | null;
+
+  @Column({ type: 'int', nullable: true })
+  cartaoId?: number | null;
+
+  @ManyToOne(() => Cartao, (cartao) => cartao.financas, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'cartaoId' })
+  cartao?: Cartao | null;
 }
