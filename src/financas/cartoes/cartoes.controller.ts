@@ -1,46 +1,58 @@
-// src/cartoes/cartoes.controller.ts
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { CartoesService } from './cartoes.service';
 import { AjustarFaturaDto } from './dto/ajustar-fatura.dto';
 import { AtualizarCartaoDto } from './dto/atualizar-cartao.dto';
+import { CriarCartaoDto } from './dto/create-cartao.dto';
 import { CriarLancamentoCartaoDto } from './dto/criar-lancamento.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('cartoes')
 export class CartoesController {
   constructor(private readonly service: CartoesService) {}
 
-  // ajuste: pegue do auth
-  private usuarioId() {
-    return 1;
+  private usuarioId(req: Request) {
+    // depende do seu payload; geralmente vem como req.user.id
+    return (req as any).user.id as number;
   }
 
   @Get()
-  listar() {
-    return this.service.listar(this.usuarioId());
+  listar(@Req() req: Request) {
+    return this.service.listar(this.usuarioId(req));
+  }
+
+  @Post()
+  criar(@Req() req: Request, @Body() dto: CriarCartaoDto) {
+    return this.service.criarCartao(this.usuarioId(req), dto);
   }
 
   @Get('saldos')
-  saldos(@Query('mes') mes: string, @Query('ano') ano: string) {
-    return this.service.saldos(Number(mes), Number(ano), this.usuarioId());
+  saldos(@Req() req: Request, @Query('mes') mes: string, @Query('ano') ano: string) {
+    return this.service.saldos(Number(mes), Number(ano), this.usuarioId(req));
   }
 
   @Get(':id/fatura')
-  detalhes(@Param('id') id: string, @Query('mes') mes: string, @Query('ano') ano: string) {
-    return this.service.detalhesFatura(Number(id), this.usuarioId(), Number(mes), Number(ano));
+  detalhes(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Query('mes') mes: string,
+    @Query('ano') ano: string,
+  ) {
+    return this.service.detalhesFatura(Number(id), this.usuarioId(req), Number(mes), Number(ano));
   }
 
   @Patch(':id')
-  atualizar(@Param('id') id: string, @Body() dto: AtualizarCartaoDto) {
-    return this.service.atualizarCartao(Number(id), this.usuarioId(), dto);
+  atualizar(@Req() req: Request, @Param('id') id: string, @Body() dto: AtualizarCartaoDto) {
+    return this.service.atualizarCartao(Number(id), this.usuarioId(req), dto);
   }
 
   @Patch(':id/fatura')
-  ajustar(@Param('id') id: string, @Body() dto: AjustarFaturaDto) {
-    return this.service.ajustarFatura(Number(id), this.usuarioId(), dto);
+  ajustar(@Req() req: Request, @Param('id') id: string, @Body() dto: AjustarFaturaDto) {
+    return this.service.ajustarFatura(Number(id), this.usuarioId(req), dto);
   }
 
   @Post(':id/lancamentos')
-  lancamento(@Param('id') id: string, @Body() dto: CriarLancamentoCartaoDto) {
-    return this.service.criarLancamento(Number(id), this.usuarioId(), dto);
+  lancamento(@Req() req: Request, @Param('id') id: string, @Body() dto: CriarLancamentoCartaoDto) {
+    return this.service.criarLancamento(Number(id), this.usuarioId(req), dto);
   }
 }

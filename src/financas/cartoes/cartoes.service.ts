@@ -7,6 +7,7 @@ import { CartaoLancamento } from './cartao-lancamento.entity';
 import { Cartao } from './cartao.entity';
 import { AjustarFaturaDto } from './dto/ajustar-fatura.dto';
 import { AtualizarCartaoDto } from './dto/atualizar-cartao.dto';
+import { CriarCartaoDto } from './dto/create-cartao.dto';
 import { CriarLancamentoCartaoDto } from './dto/criar-lancamento.dto';
 
 @Injectable()
@@ -172,5 +173,17 @@ export class CartoesService {
 
   async listar(usuarioId: number) {
     return this.cartoesRepo.find({ where: { usuario: { id: usuarioId } }, order: { id: 'DESC' } });
+  }
+
+  async criarCartao(usuarioId: number, dto: CriarCartaoDto) {
+    const cartao = this.cartoesRepo.create({
+      usuarioId,
+      nome: dto.nome.trim(),
+      limite: Number(dto.limite || 0),
+      diaFechamento: dto.diaFechamento ?? null,
+      diaVencimento: dto.diaVencimento ?? null,
+    });
+
+    return this.cartoesRepo.save(cartao);
   }
 }

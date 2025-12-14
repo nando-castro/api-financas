@@ -1,11 +1,21 @@
-import { IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
-export class CreateCartaoDto {
+export class CriarCartaoDto {
   @IsString()
-  @IsNotEmpty()
   nome: string;
 
   @IsNumber()
-  @Min(0)
   limite: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  diaFechamento?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  diaVencimento?: number | null;
 }
