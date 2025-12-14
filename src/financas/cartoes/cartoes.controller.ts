@@ -1,8 +1,20 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { CartoesService } from './cartoes.service';
 import { AjustarFaturaDto } from './dto/ajustar-fatura.dto';
 import { AtualizarCartaoDto } from './dto/atualizar-cartao.dto';
+import { AtualizarLancamentoCartaoDto } from './dto/atualizar-lancamento.dto';
 import { CriarCartaoDto } from './dto/create-cartao.dto';
 import { CriarLancamentoCartaoDto } from './dto/criar-lancamento.dto';
 
@@ -12,7 +24,6 @@ export class CartoesController {
   constructor(private readonly service: CartoesService) {}
 
   private usuarioId(req: Request) {
-    // depende do seu payload; geralmente vem como req.user.id
     return (req as any).user.id as number;
   }
 
@@ -54,5 +65,29 @@ export class CartoesController {
   @Post(':id/lancamentos')
   lancamento(@Req() req: Request, @Param('id') id: string, @Body() dto: CriarLancamentoCartaoDto) {
     return this.service.criarLancamento(Number(id), this.usuarioId(req), dto);
+  }
+
+  @Patch(':id/lancamentos/:lancamentoId')
+  editarLancamento(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Param('lancamentoId') lancamentoId: string,
+    @Body() dto: AtualizarLancamentoCartaoDto,
+  ) {
+    return this.service.editarLancamento(
+      Number(id),
+      this.usuarioId(req),
+      Number(lancamentoId),
+      dto,
+    );
+  }
+
+  @Delete(':id/lancamentos/:lancamentoId')
+  apagarLancamento(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Param('lancamentoId') lancamentoId: string,
+  ) {
+    return this.service.apagarLancamento(Number(id), this.usuarioId(req), Number(lancamentoId));
   }
 }

@@ -1,13 +1,13 @@
 // src/cartoes/cartao-fatura.entity.ts
 import {
-    Column,
-    CreateDateColumn,
-    Entity,
-    JoinColumn,
-    ManyToOne,
-    OneToMany,
-    PrimaryGeneratedColumn,
-    Unique,
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 import { CartaoLancamento } from './cartao-lancamento.entity';
 import { Cartao } from './cartao.entity';
