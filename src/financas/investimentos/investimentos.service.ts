@@ -214,11 +214,14 @@ export class InvestimentosService {
         ano,
       });
 
+      const aporteMensalAtual = this.obterAporteDoMes(item.aportes ?? [], ano, mes);
+
       return {
         investimentoId: item.id,
         nome: item.nome,
         valorInicial,
         taxaMensal,
+        aporteMensalAtual,
         dataInicio: item.dataInicio,
         valorProjetado: calculo.valorProjetado,
         rendimentoAcumulado: calculo.rendimentoAcumulado,
