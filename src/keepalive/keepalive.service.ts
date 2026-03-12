@@ -13,7 +13,7 @@ export class KeepAliveService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     if (this.enabled) {
-      this.startKeepAlive();
+      // this.startKeepAlive();
     } else {
       this.logger.warn('⚠️ Rotina KeepAlive desativada via configuração (.env).');
     }

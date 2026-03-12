@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { CategoriasModule } from './categorias/categorias.module';
 import { ChecklistModule } from './financas/checklist/checklist.module';
 import { FinancasModule } from './financas/financas.module';
+import { InvestimentosModule } from './financas/investimentos/investimentos.module';
 import { SaldoMensalModule } from './financas/saldo-mensal/saldo-mensal.module';
 import { KeepAliveController } from './keepalive/keepalive.controller';
 import { KeepAliveService } from './keepalive/keepalive.service';
@@ -42,6 +43,7 @@ const isProduction = process.env.AMBIENTE === 'prod';
     MailModule,
     SaldoMensalModule,
     ChecklistModule,
+    InvestimentosModule,
   ],
   controllers: [KeepAliveController],
   providers: [KeepAliveService], // 👈 Adicionado aqui
