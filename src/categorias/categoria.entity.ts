@@ -1,3 +1,4 @@
+import { Financa } from 'src/financas/financa.entity';
 import {
   Column,
   CreateDateColumn,
@@ -6,27 +7,31 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-// import { Financa } from '../financas/financa.entity';
-import { Financa } from 'src/financas/financa.entity';
 import { Usuario } from '../usuarios/usuario.entity';
+import { TipoCategoria } from './enums/tipo-categoria.enum';
 
 @Entity('categorias')
 export class Categoria {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column()
-  nome: string;
+  nome!: string;
+
+  @Column({
+    type: 'enum',
+    enum: TipoCategoria,
+  })
+  tipo!: TipoCategoria;
 
   @CreateDateColumn()
-  criadoEm: Date;
+  criadoEm!: Date;
 
-  // Categoria pertence a um usuário
   @ManyToOne(() => Usuario, (usuario) => usuario.categorias, {
     onDelete: 'CASCADE',
   })
-  usuario: Usuario;
+  usuario!: Usuario;
 
   @OneToMany(() => Financa, (financa) => financa.categoria)
-  financas: Financa[];
+  financas!: Financa[];
 }
