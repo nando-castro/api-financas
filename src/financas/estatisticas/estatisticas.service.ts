@@ -252,4 +252,43 @@ export class EstatisticasService {
       return a.tipo.localeCompare(b.tipo);
     });
   }
+
+  async comparativoSalarioDespesa(usuarioId: number, mes?: number, ano?: number) {
+    const mensal = await this.estatisticasMensal(usuarioId, mes, ano);
+
+    const salario = mensal.totalRendas;
+    const despesas = mensal.totalDespesas;
+    const saldo = mensal.saldo;
+
+    const percentualDespesa = salario > 0 ? Number(((despesas / salario) * 100).toFixed(2)) : 0;
+
+    const percentualSaldo = salario > 0 ? Number(((saldo / salario) * 100).toFixed(2)) : 0;
+
+    return {
+      mes: mensal.mes,
+      ano: mensal.ano,
+      salario,
+      despesas,
+      saldo,
+      percentualDespesa,
+      percentualSaldo,
+      grafico: [
+        {
+          nome: 'Salário',
+          valor: salario,
+          percentual: salario > 0 ? 100 : 0,
+        },
+        {
+          nome: 'Despesas',
+          valor: despesas,
+          percentual: percentualDespesa,
+        },
+        {
+          nome: 'Saldo livre',
+          valor: saldo,
+          percentual: percentualSaldo,
+        },
+      ],
+    };
+  }
 }
