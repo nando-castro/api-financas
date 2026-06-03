@@ -6,6 +6,7 @@ import { EstatisticasModule } from './estatisticas/estatisticas.module';
 import { Financa } from './financa.entity';
 import { FinancasController } from './financas.controller';
 import { FinancasService } from './financas.service';
+import { RelatorioFinanceiroService } from './relatorios/relatorio-financeiro.service';
 import { SaldoMensalModule } from './saldo-mensal/saldo-mensal.module'; // ✅ módulo já exporta o service
 
 @Module({
@@ -16,6 +17,6 @@ import { SaldoMensalModule } from './saldo-mensal/saldo-mensal.module'; // ✅ m
     CartoesModule,
   ],
   controllers: [FinancasController],
-  providers: [FinancasService], // ✅ apenas o service principal
+  providers: [FinancasService, RelatorioFinanceiroService], // ✅ apenas o service principal
 })
 export class FinancasModule {}
