@@ -1,39 +1,64 @@
 import { Categoria } from 'src/categorias/categoria.entity';
 import { Usuario } from 'src/usuarios/usuario.entity';
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { BasePercentualEnum } from './regras-percentuais.enums';
 
 @Entity('regra_percentual')
 export class RegraPercentual {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column()
-  nome: string;
+  nome!: string;
 
   @Column({
     type: 'decimal',
     precision: 5,
     scale: 2,
   })
-  percentual: number;
+  percentual!: number;
 
   @Column({
     type: 'enum',
     enum: BasePercentualEnum,
   })
-  basePercentual: BasePercentualEnum;
+  basePercentual!: BasePercentualEnum;
 
   @ManyToOne(() => Categoria, {
     nullable: true,
   })
-  categoria: Categoria | null;
+  categoria!: Categoria | null;
 
   @ManyToOne(() => Usuario)
-  usuario: Usuario;
+  usuario!: Usuario;
 
   @Column({
     default: true,
   })
-  ativo: boolean;
+  ativo!: boolean;
+
+  @Column({ type: 'int', nullable: true, default: null })
+  mesReferencia!: number | null;
+
+  @Column({ type: 'int', nullable: true, default: null })
+  anoReferencia!: number | null;
+
+  @Column({ type: 'date', nullable: true, default: null })
+  dataInicio!: Date | null;
+
+  @Column({ type: 'date', nullable: true, default: null })
+  dataFim!: Date | null;
+
+  @CreateDateColumn({ type: 'timestamp' })
+  criadoEm!: Date;
+
+  @UpdateDateColumn({ type: 'timestamp' })
+  atualizadoEm!: Date;
 }

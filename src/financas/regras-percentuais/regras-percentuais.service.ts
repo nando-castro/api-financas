@@ -27,6 +27,71 @@ export class RegraPercentualService {
     private readonly categoriaRepo: Repository<Categoria>,
   ) {}
 
+  private obterPeriodoMes(regra: RegraPercentual) {
+    if (!regra.mesReferencia || !regra.anoReferencia) {
+      return null;
+    }
+
+    const inicio = new Date(regra.anoReferencia, regra.mesReferencia - 1, 1);
+    const fim = new Date(regra.anoReferencia, regra.mesReferencia, 1);
+
+    return { inicio, fim };
+  }
+
+  private async calcularValor(regra: RegraPercentual, usuarioId: number) {
+    let valorBase = 0;
+    const periodo = this.obterPeriodoMes(regra);
+
+    if (regra.basePercentual === BasePercentualEnum.TOTAL_RENDAS) {
+      const query = this.financaRepo
+        .createQueryBuilder('f')
+        .leftJoin('f.usuario', 'u')
+        .where('u.id = :usuarioId', { usuarioId })
+        .andWhere('f.tipo = :tipo', { tipo: 'RENDA' });
+
+      if (periodo) {
+        query
+          .andWhere('f.dataInicio >= :inicio', { inicio: periodo.inicio })
+          .andWhere('f.dataInicio < :fim', { fim: periodo.fim });
+      }
+
+      const total = await query.select('COALESCE(SUM(f.valor), 0)', 'total').getRawOne();
+
+      valorBase = Number(total?.total ?? 0);
+    }
+
+    if (regra.basePercentual === BasePercentualEnum.CATEGORIA_RENDA) {
+      if (!regra.categoria) {
+        throw new NotFoundException('Categoria da regra não encontrada.');
+      }
+
+      const query = this.financaRepo
+        .createQueryBuilder('f')
+        .leftJoin('f.usuario', 'u')
+        .leftJoin('f.categoria', 'c')
+        .where('u.id = :usuarioId', { usuarioId })
+        .andWhere('f.tipo = :tipo', { tipo: 'RENDA' })
+        .andWhere('c.id = :categoriaId', {
+          categoriaId: regra.categoria.id,
+        });
+
+      if (periodo) {
+        query
+          .andWhere('f.dataInicio >= :inicio', { inicio: periodo.inicio })
+          .andWhere('f.dataInicio < :fim', { fim: periodo.fim });
+      }
+
+      const total = await query.select('COALESCE(SUM(f.valor), 0)', 'total').getRawOne();
+
+      valorBase = Number(total?.total ?? 0);
+    }
+
+    return {
+      valorBase,
+      valorCalculado: Number((valorBase * (Number(regra.percentual) / 100)).toFixed(2)),
+    };
+  }
+
   async criar(dto: CriarRegraPercentualDto, usuario: Usuario) {
     let categoria: Categoria | null = null;
 
@@ -51,18 +116,29 @@ export class RegraPercentualService {
       categoria,
       usuario,
       ativo: true,
+      mesReferencia: dto.mesReferencia ?? null,
+      anoReferencia: dto.anoReferencia ?? null,
+      dataInicio: dto.dataInicio ? new Date(dto.dataInicio) : null,
+      dataFim: dto.dataFim ? new Date(dto.dataFim) : null,
     });
 
     return this.regraRepo.save(regra);
   }
 
-  async listar(usuarioId: number) {
-    const regras = await this.regraRepo.find({
-      where: {
-        usuario: {
-          id: usuarioId,
-        },
+  async listar(usuarioId: number, mes?: number, ano?: number) {
+    const where: any = {
+      usuario: {
+        id: usuarioId,
       },
+    };
+
+    if (mes !== undefined && ano !== undefined) {
+      where.mesReferencia = mes;
+      where.anoReferencia = ano;
+    }
+
+    const regras = await this.regraRepo.find({
+      where,
       relations: ['categoria'],
       order: {
         id: 'DESC',
@@ -80,6 +156,8 @@ export class RegraPercentualService {
         percentual: regra.percentual,
         basePercentual: regra.basePercentual,
         categoria: regra.categoria,
+        mesReferencia: regra.mesReferencia,
+        anoReferencia: regra.anoReferencia,
         valorBase: calculo.valorBase,
         valorCalculado: calculo.valorCalculado,
       });
@@ -199,51 +277,6 @@ export class RegraPercentualService {
       basePercentual: regra.basePercentual,
       valorBase: calculo.valorBase,
       valorCalculado: calculo.valorCalculado,
-    };
-  }
-
-  private async calcularValor(regra: RegraPercentual, usuarioId: number) {
-    let valorBase = 0;
-
-    if (regra.basePercentual === BasePercentualEnum.TOTAL_RENDAS) {
-      const total = await this.financaRepo
-        .createQueryBuilder('f')
-        .leftJoin('f.usuario', 'u')
-        .where('u.id = :usuarioId', { usuarioId })
-        .andWhere('f.tipo = :tipo', {
-          tipo: 'RENDA',
-        })
-        .select('COALESCE(SUM(f.valor),0)', 'total')
-        .getRawOne();
-
-      valorBase = Number(total?.total ?? 0);
-    }
-
-    if (regra.basePercentual === BasePercentualEnum.CATEGORIA_RENDA) {
-      if (!regra.categoria) {
-        throw new NotFoundException('Categoria da regra não encontrada.');
-      }
-
-      const total = await this.financaRepo
-        .createQueryBuilder('f')
-        .leftJoin('f.usuario', 'u')
-        .leftJoin('f.categoria', 'c')
-        .where('u.id = :usuarioId', { usuarioId })
-        .andWhere('f.tipo = :tipo', {
-          tipo: 'RENDA',
-        })
-        .andWhere('c.id = :categoriaId', {
-          categoriaId: regra.categoria.id,
-        })
-        .select('COALESCE(SUM(f.valor),0)', 'total')
-        .getRawOne();
-
-      valorBase = Number(total?.total ?? 0);
-    }
-
-    return {
-      valorBase,
-      valorCalculado: Number((valorBase * (Number(regra.percentual) / 100)).toFixed(2)),
     };
   }
 }

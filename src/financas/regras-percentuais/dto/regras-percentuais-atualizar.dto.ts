@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 import { BasePercentualEnum } from '../regras-percentuais.enums';
 
 export class AtualizarRegraPercentualDto {
@@ -8,8 +8,6 @@ export class AtualizarRegraPercentualDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(0)
-  @Max(100)
   percentual?: number;
 
   @IsOptional()
@@ -19,4 +17,22 @@ export class AtualizarRegraPercentualDto {
   @IsOptional()
   @IsNumber()
   categoriaId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(12)
+  mesReferencia?: number;
+
+  @IsOptional()
+  @IsNumber()
+  anoReferencia?: number;
+
+  @IsOptional()
+  @IsDateString()
+  dataInicio?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dataFim?: string;
 }

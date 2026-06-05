@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -26,8 +27,12 @@ export class RegraPercentualController {
   }
 
   @Get()
-  listar(@Req() req) {
-    return this.regraPercentualService.listar(req.user.id);
+  listar(@Req() req, @Query('mes') mes?: string, @Query('ano') ano?: string) {
+    return this.regraPercentualService.listar(
+      req.user.id,
+      mes ? Number(mes) : undefined,
+      ano ? Number(ano) : undefined,
+    );
   }
 
   @Get(':id')
