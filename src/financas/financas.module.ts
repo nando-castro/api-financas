@@ -6,6 +6,7 @@ import { EstatisticasModule } from './estatisticas/estatisticas.module';
 import { Financa } from './financa.entity';
 import { FinancasController } from './financas.controller';
 import { FinancasService } from './financas.service';
+import { RegraPercentualModule } from './regras-percentuais/regras-percentuais.module';
 import { RelatorioFinanceiroService } from './relatorios/relatorio-financeiro.service';
 import { SaldoMensalModule } from './saldo-mensal/saldo-mensal.module'; // ✅ módulo já exporta o service
 
@@ -15,6 +16,7 @@ import { SaldoMensalModule } from './saldo-mensal/saldo-mensal.module'; // ✅ m
     EstatisticasModule,
     SaldoMensalModule, // ✅ importa o módulo (não o service direto)
     CartoesModule,
+    RegraPercentualModule,
   ],
   controllers: [FinancasController],
   providers: [FinancasService, RelatorioFinanceiroService], // ✅ apenas o service principal
