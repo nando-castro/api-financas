@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import dayjs from 'dayjs';
 import { Repository } from 'typeorm';
-import { Financa } from '../financa.entity';
+import { Financa, TipoLancamento } from '../financa.entity';
 
 @Injectable()
 export class EstatisticasService {
@@ -79,6 +79,30 @@ export class EstatisticasService {
       .filter((f) => f.tipo === 'DESPESA')
       .reduce((acc, f) => acc + Number(f.valor), 0);
 
+    const totalFixo = financas
+      .filter((f) => f.tipoLancamento === TipoLancamento.FIXO)
+      .reduce((acc, f) => acc + Number(f.valor), 0);
+
+    const totalVariavel = financas
+      .filter((f) => f.tipoLancamento === TipoLancamento.VARIAVEL)
+      .reduce((acc, f) => acc + Number(f.valor), 0);
+
+    const rendasFixas = financas
+      .filter((f) => f.tipo === 'RENDA' && f.tipoLancamento === TipoLancamento.FIXO)
+      .reduce((acc, f) => acc + Number(f.valor), 0);
+
+    const rendasVariaveis = financas
+      .filter((f) => f.tipo === 'RENDA' && f.tipoLancamento === TipoLancamento.VARIAVEL)
+      .reduce((acc, f) => acc + Number(f.valor), 0);
+
+    const despesasFixas = financas
+      .filter((f) => f.tipo === 'DESPESA' && f.tipoLancamento === TipoLancamento.FIXO)
+      .reduce((acc, f) => acc + Number(f.valor), 0);
+
+    const despesasVariaveis = financas
+      .filter((f) => f.tipo === 'DESPESA' && f.tipoLancamento === TipoLancamento.VARIAVEL)
+      .reduce((acc, f) => acc + Number(f.valor), 0);
+
     const saldo = totalRendas - totalDespesas;
 
     const saldoAnterior = await this.getSaldoAcumuladoAteMes(usuarioId, mesAtual, anoAtual);
@@ -98,13 +122,27 @@ export class EstatisticasService {
     return {
       mes: dayjs(inicioMes).format('MMMM'),
       ano: anoAtual,
+
       totalRendas,
       totalDespesas,
+
       saldo,
       saldoAnterior,
       saldoAcumulado,
+
       percentualEconomia,
       recomendacao,
+
+      tipoLancamento: {
+        totalFixo,
+        totalVariavel,
+
+        rendasFixas,
+        rendasVariaveis,
+
+        despesasFixas,
+        despesasVariaveis,
+      },
     };
   }
 
