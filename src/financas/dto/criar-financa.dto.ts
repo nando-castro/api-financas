@@ -9,6 +9,7 @@ import {
   IsOptional,
   ValidateIf,
 } from 'class-validator';
+import { TipoLancamento } from '../financa.entity';
 import { FormaPagamento } from '../financa.enums';
 
 export enum TipoFinanca {
@@ -26,6 +27,12 @@ export class CriarFinancaDto {
 
   @IsEnum(TipoFinanca, { message: 'O tipo deve ser RENDA ou DESPESA.' })
   tipo: TipoFinanca;
+
+  @IsOptional()
+  @IsEnum(TipoLancamento, {
+    message: 'O tipo de lançamento deve ser FIXO ou VARIAVEL.',
+  })
+  tipoLancamento?: TipoLancamento;
 
   @IsOptional()
   @Type(() => Number)

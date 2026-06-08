@@ -17,6 +17,11 @@ export enum FormaPagamento {
   DINHEIRO = 'DINHEIRO',
 }
 
+export enum TipoLancamento {
+  FIXO = 'FIXO',
+  VARIAVEL = 'VARIAVEL',
+}
+
 @Entity('financas')
 export class Financa {
   @PrimaryGeneratedColumn()
@@ -37,6 +42,13 @@ export class Financa {
 
   @Column()
   tipo: 'RENDA' | 'DESPESA';
+
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: 'VARIAVEL',
+  })
+  tipoLancamento: TipoLancamento;
 
   @Column({ nullable: true })
   parcelas: number;

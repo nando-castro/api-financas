@@ -183,6 +183,7 @@ export class FinancasService {
       formaPagamento: f.formaPagamento ?? null,
       cartaoId: f.cartaoId ?? null,
       categoria: f.categoria ? { id: f.categoria.id, nome: f.categoria.nome } : null,
+      tipoLancamento: f.tipoLancamento,
     }));
   }
 }
