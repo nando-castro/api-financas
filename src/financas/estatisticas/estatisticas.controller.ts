@@ -39,4 +39,17 @@ export class EstatisticasController {
       ano ? Number(ano) : undefined,
     );
   }
+
+  @Get('categorias-tipo-lancamento')
+  async categoriasTipoLancamento(
+    @Req() req,
+    @Query('mes') mes?: string,
+    @Query('ano') ano?: string,
+  ) {
+    return this.estatisticasService.categoriasTipoLancamento(
+      req.user.id,
+      mes ? Number(mes) : undefined,
+      ano ? Number(ano) : undefined,
+    );
+  }
 }

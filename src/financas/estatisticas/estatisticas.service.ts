@@ -329,4 +329,73 @@ export class EstatisticasService {
       ],
     };
   }
+
+  async categoriasTipoLancamento(usuarioId: number, mes?: number, ano?: number) {
+    const hoje = dayjs();
+    const mesAtual = mes ?? hoje.month() + 1;
+    const anoAtual = ano ?? hoje.year();
+
+    const inicioMes = dayjs(`${anoAtual}-${mesAtual}-01`).startOf('month').toDate();
+
+    const fimMes = dayjs(inicioMes).endOf('month').toDate();
+
+    const financas = await this.financaRepo
+      .createQueryBuilder('f')
+      .leftJoinAndSelect('f.categoria', 'c')
+      .leftJoin('f.usuario', 'u')
+      .where('u.id = :usuarioId', { usuarioId })
+      .andWhere('f.dataInicio <= :fimMes', { fimMes })
+      .andWhere('(f.dataFim IS NULL OR f.dataFim >= :inicioMes)', {
+        inicioMes,
+      })
+      .getMany();
+
+    const agrupadas = financas.reduce(
+      (acc, f) => {
+        const categoria = f.categoria?.nome ?? 'Sem categoria';
+
+        if (!acc[categoria]) {
+          acc[categoria] = {
+            categoria,
+            total: 0,
+            fixo: 0,
+            variavel: 0,
+            quantidade: 0,
+          };
+        }
+
+        const valor = Number(f.valor);
+
+        acc[categoria].total += valor;
+        acc[categoria].quantidade++;
+
+        if (f.tipoLancamento === TipoLancamento.FIXO) {
+          acc[categoria].fixo += valor;
+        } else {
+          acc[categoria].variavel += valor;
+        }
+
+        return acc;
+      },
+      {} as Record<
+        string,
+        {
+          categoria: string;
+          total: number;
+          fixo: number;
+          variavel: number;
+          quantidade: number;
+        }
+      >,
+    );
+
+    return Object.values(agrupadas)
+      .map((item) => ({
+        ...item,
+        percentualFixo: item.total > 0 ? Number(((item.fixo / item.total) * 100).toFixed(2)) : 0,
+        percentualVariavel:
+          item.total > 0 ? Number(((item.variavel / item.total) * 100).toFixed(2)) : 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }
 }
