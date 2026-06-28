@@ -27,6 +27,19 @@ export class EstatisticasController {
     return this.estatisticasService.porCategoria(req.user.id, mes, ano);
   }
 
+  @Get('comparativo-categorias')
+  async comparativoCategorias(
+    @Req() req,
+    @Query('mes') mes?: string,
+    @Query('ano') ano?: string,
+  ) {
+    return this.estatisticasService.comparativoCategorias(
+      req.user.id,
+      mes ? Number(mes) : undefined,
+      ano ? Number(ano) : undefined,
+    );
+  }
+
   @Get('comparativo-salario-despesa')
   async comparativoSalarioDespesa(
     @Req() req,

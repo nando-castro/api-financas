@@ -291,6 +291,43 @@ export class EstatisticasService {
     });
   }
 
+  async comparativoCategorias(usuarioId: number, mes?: number, ano?: number) {
+    const hoje = dayjs();
+    const referenciaAtual = dayjs(`${ano ?? hoje.year()}-${mes ?? hoje.month() + 1}-01`);
+    const referenciaAnterior = referenciaAtual.subtract(1, 'month');
+    const [atual, anterior] = await Promise.all([
+      this.porCategoria(usuarioId, referenciaAtual.month() + 1, referenciaAtual.year()),
+      this.porCategoria(usuarioId, referenciaAnterior.month() + 1, referenciaAnterior.year()),
+    ]);
+    const chaves = new Set([
+      ...atual.map((item) => `${item.tipo}::${item.categoria}`),
+      ...anterior.map((item) => `${item.tipo}::${item.categoria}`),
+    ]);
+    const categorias = Array.from(chaves).map((chave) => {
+      const [tipo, categoria] = chave.split('::');
+      const valorAtual = Number(atual.find((i) => i.tipo === tipo && i.categoria === categoria)?.total ?? 0);
+      const valorAnterior = Number(anterior.find((i) => i.tipo === tipo && i.categoria === categoria)?.total ?? 0);
+      const diferenca = valorAtual - valorAnterior;
+      const percentual = valorAnterior === 0 ? (valorAtual === 0 ? 0 : 100) : (diferenca / Math.abs(valorAnterior)) * 100;
+      return { tipo, categoria, valorAtual, valorAnterior, diferenca: Number(diferenca.toFixed(2)), percentual: Number(percentual.toFixed(2)), nova: valorAnterior === 0 && valorAtual > 0 };
+    }).sort((a, b) => a.tipo !== b.tipo ? (a.tipo === 'RENDA' ? -1 : 1) : b.valorAtual - a.valorAtual || a.categoria.localeCompare(b.categoria));
+
+    const totais = (tipo: 'RENDA' | 'DESPESA') => {
+      const itens = categorias.filter((item) => item.tipo === tipo);
+      const valorAtual = itens.reduce((soma, item) => soma + item.valorAtual, 0);
+      const valorAnterior = itens.reduce((soma, item) => soma + item.valorAnterior, 0);
+      const diferenca = valorAtual - valorAnterior;
+      const percentual = valorAnterior === 0 ? (valorAtual === 0 ? 0 : 100) : (diferenca / Math.abs(valorAnterior)) * 100;
+      return { valorAtual, valorAnterior, diferenca: Number(diferenca.toFixed(2)), percentual: Number(percentual.toFixed(2)) };
+    };
+    return {
+      periodoAtual: { mes: referenciaAtual.month() + 1, ano: referenciaAtual.year() },
+      periodoAnterior: { mes: referenciaAnterior.month() + 1, ano: referenciaAnterior.year() },
+      resumo: { rendas: totais('RENDA'), despesas: totais('DESPESA') },
+      categorias,
+    };
+  }
+
   async comparativoSalarioDespesa(usuarioId: number, mes?: number, ano?: number) {
     const mensal = await this.estatisticasMensal(usuarioId, mes, ano);
 
