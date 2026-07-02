@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { Categoria } from './src/categorias/categoria.entity';
 import { Financa } from './src/financas/financa.entity';
 import { Usuario } from './src/usuarios/usuario.entity';
+import { DailyEarningPlanning } from './src/earning-planning/daily-earning-planning.entity';
 
 dotenv.config();
 
@@ -15,6 +16,6 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME,
   synchronize: false,
   logging: true,
-  entities: [Usuario, Categoria, Financa],
+  entities: [Usuario, Categoria, Financa, DailyEarningPlanning],
   migrations: ['src/migrations/*.ts'],
 });

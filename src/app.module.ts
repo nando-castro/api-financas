@@ -11,6 +11,7 @@ import { KeepAliveController } from './keepalive/keepalive.controller';
 import { KeepAliveService } from './keepalive/keepalive.service';
 import { MailModule } from './mail/mail.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
+import { EarningPlanningModule } from './earning-planning/earning-planning.module';
 
 const isProduction = process.env.AMBIENTE === 'prod';
 
@@ -44,6 +45,7 @@ const isProduction = process.env.AMBIENTE === 'prod';
     SaldoMensalModule,
     ChecklistModule,
     InvestimentosModule,
+    EarningPlanningModule,
   ],
   controllers: [KeepAliveController],
   providers: [KeepAliveService], // 👈 Adicionado aqui
