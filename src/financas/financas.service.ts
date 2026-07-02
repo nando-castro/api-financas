@@ -77,10 +77,12 @@ export class FinancasService {
 
     // 🔹 Conversão explícita das datas (importante!)
     if (dto.dataInicio) {
-      financa.dataInicio = new Date(dto.dataInicio);
+      // Evita que `YYYY-MM-DD` seja interpretado como UTC e recue um dia
+      // em fusos negativos, como America/Sao_Paulo.
+      financa.dataInicio = dayjs(dto.dataInicio).startOf('day').toDate();
     }
     if (dto.dataFim) {
-      financa.dataFim = new Date(dto.dataFim);
+      financa.dataFim = dayjs(dto.dataFim).startOf('day').toDate();
     }
 
     // 🔹 Atualiza categoria, se necessário
